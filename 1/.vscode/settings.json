@@ -1,0 +1,6 @@
+{
+  "haskell.languageServer.useMultiCradle": true,
+  "haskell.languageServer.multiCradle": {
+    "./": { "component": "project:lib" }
+  }
+}
