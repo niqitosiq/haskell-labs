@@ -1,8 +1,10 @@
 
 
+-- 1) Функция вычисления арифметического среднего элементов списка вещественных чисел с использованием функции foldr. Функция должна осуществлять только один проход по списку.
 average :: [Double] -> Double
-average xs = 
-
+average xs =
+  let (sum, count) = foldr (\x (s, c) -> (s + x, c + 1)) (0, 0) xs
+   in sum / count
 
 
 dotProduct :: Num a => [a] -> [a] -> a
@@ -18,6 +20,13 @@ quicksort [] = []
 quicksort (x:xs) = quicksort left ++ [x] ++ quicksort right
   where left = filter (< x) xs
         right = filter (>= x) xs
+
+quicksortWith :: (a -> a -> Bool) -> [a] -> [a]
+quicksortWith _ [] = []
+quicksortWith cmp (x : xs) = quicksortWith cmp left ++ [x] ++ quicksortWith cmp right
+  where
+    left = filter (\y -> cmp y x) xs
+    right = filter (\y -> not (cmp y x)) xs
 
 main :: IO ()
 main = do
@@ -46,9 +55,3 @@ main = do
       singleElementList' = [5]
   print $ countEven emptyList' -- 0
   print $ countEven singleElementList' -- 0
-
-  let unsortedList' = []
-  print $ quicksort unsortedList' -- []
-
-  let singleElementList'' = [4]
-  print $ quicksort singleElementList'' -- [4]
