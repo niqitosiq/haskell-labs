@@ -1,77 +1,70 @@
-import Data.List (nub)
+import Data.List (find, nub)
 
-data Suit = Spades | Hearts | Diamonds | Clubs deriving (Ord, Eq, Show)
+-- вариант 8
+-- В электронной записной книжке хранятся записи следующих ви-дов: напоминания о днях рождения знакомых, телефоны знакомых и назначенные встречи. Напоминание состоит из имени знакомого и даты (день и месяц). Запись о телефоне должна содержать имя человека и его телефон. Информация о назначенной встрече содержит дату встречи (день, месяц, год) и краткое описание (мож-но представлять строкой). Разработайте тип данных, представляющий такую запись. Записная книжка является списком записей.
+-- Определите следующие функции:
+-- 1) getByName, возвращающая информацию о человеке с указан-ным именем (его телефон и дагу рождения).
+-- 2) getByLetter, возвращающая список людей, о которых есть информация в записной книжке и чье имя начинается на указан-ную букву.
+-- 3) getAssignment, возвращающая по указанной дате список дел (информация о назначенных встречах и телефоны друзей, которых нужно поздравить в этот день).
 
-data Rank = Two | Three | Four | Five | Six | Seven | Eight | Nine | Ten | Jack | Queen | King | Ace deriving (Ord, Eq)
+data Date = Date
+  { day :: Int,
+    month :: Int,
+    year :: Maybe Int
+  }
+  deriving (Eq, Show)
 
-instance Show Rank where
-  show Two = "2"
-  show Three = "3"
-  show Four = "4"
-  show Five = "5"
-  show Six = "6"
-  show Seven = "7"
-  show Eight = "8"
-  show Nine = "9"
-  show Ten = "10"
-  show Jack = "J"
-  show Queen = "Q"
-  show King = "K"
-  show Ace = "A"
+type Notebook = [Entry]
 
-data Card = Card Suit Rank
+data Entry
+  = BirthdayReminder {entryName :: String, date :: Date}
+  | PhoneNumber {entryName :: String, phone :: String}
+  | Appointment {date :: Date, description :: String}
+  deriving (Eq, Show) -- существенно облегчаем работу....
 
-instance Show Card where
-  show (Card s r) = show r ++ " of " ++ show s
+getByName :: String -> Notebook -> (Maybe String, Maybe Date)
+getByName personName notebook =
+  let phoneEntry = find (\e -> case e of PhoneNumber n _ -> n == personName; _ -> False) notebook
+      birthdayEntry = find (\e -> case e of BirthdayReminder n _ -> n == personName; _ -> False) notebook
+   in (phoneEntry >>= (\(PhoneNumber _ p) -> Just p), birthdayEntry >>= (\(BirthdayReminder _ d) -> Just d))
 
-isMinor :: Card -> Bool
-isMinor (Card _ r) = r >= Two && r <= Ten
+extractName :: Entry -> String
+extractName (PhoneNumber n _) = n
+extractName (BirthdayReminder n _) = n
+extractName _ = ""
 
-sameSuit :: Card -> Card -> Bool
-sameSuit (Card s1 _) (Card s2 _) = s1 == s2
+getByLetter :: Char -> Notebook -> [String]
+getByLetter letter notebook = nub filteredNames
+  where
+    names = map extractName notebook
+    startsWithLetter name = (not . null) name && head name == letter
+    filteredNames = filter startsWithLetter names
 
-beats :: Card -> Card -> Bool
-beats (Card _ r1) (Card _ r2) = r1 > r2
-
-beatsTrump :: Card -> Card -> Suit -> Bool
-beatsTrump (Card s1 r1) (Card s2 r2) trump =
-  if s1 == trump && s2 /= trump
-    then True
-    else if s1 /= trump && s2 == trump
-      then False
-      else r1 > r2
-
-beatsList :: [Card] -> Card -> Suit -> [Card]
-beatsList cs c trump = filter (\c' -> beatsTrump c' c trump) cs
-
-cardValue :: Rank -> Int
-cardValue Two = 2
-cardValue Three = 3
-cardValue Four = 4
-cardValue Five = 5
-cardValue Six = 6
-cardValue Seven = 7
-cardValue Eight = 8
-cardValue Nine = 9
-cardValue Ten = 10
-cardValue Jack = 10
-cardValue Queen = 10
-cardValue King = 10
-cardValue Ace = 11
-
-possibleValues :: [Card] -> [Int]
-possibleValues cs =
-  let possibleAces = map (\(Card _ r) -> if r == Ace then [1, 11] else [cardValue r]) cs
-      allCombinations = foldr (\xs acc -> [x + y | x <- xs, y <- acc]) [0] possibleAces
-  in nub allCombinations
+getAssignment :: Date -> Notebook -> ([String], [String])
+getAssignment date notebook =
+  let events =
+        filter
+          ( \e -> case e of
+              Appointment {date = d} -> d == date
+              BirthdayReminder {date = d} -> d == date {year = Nothing}
+              _ -> False
+          )
+          notebook
+      appointments = [desc | Appointment {description = desc} <- events]
+      friendsToCongratulate = [name | BirthdayReminder {entryName = name} <- events]
+   in (appointments, friendsToCongratulate)
 
 main :: IO ()
 main = do
-  let cards = [Card Spades Two, Card Diamonds Four, Card Clubs Jack, Card Hearts Ace]
-  let trump = Spades
-  putStrLn "Cards:"
-  print cards
-  putStrLn "Possible values:"
-  print $ possibleValues cards
-  putStrLn "Beats list:"
-  print $ beatsList cards (Card Hearts King) trump
+  let notebook =
+        [ BirthdayReminder "Ivan" (Date 15 4 Nothing),
+          PhoneNumber "Ivan" "555-1234",
+          Appointment (Date 15 4 (Just 2023)) "Празднование дня рождения Ивана",
+          BirthdayReminder "Anna" (Date 20 4 Nothing),
+          PhoneNumber "Anna" "555-5678",
+          Appointment (Date 20 4 (Just 2023)) "Празднование дня рождения Анны"
+        ]
+
+  print $ getByName "Ivan" notebook
+  print $ getByLetter 'I' notebook
+  print $ getAssignment (Date 15 4 (Just 2023)) notebook
